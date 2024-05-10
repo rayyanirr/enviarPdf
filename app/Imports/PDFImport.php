@@ -2,22 +2,12 @@
 
 namespace App\Imports;
 
-use App\Models\Pdf;
-use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\ToArray;
 
-class PDFImport implements ToModel
+class PDFImport implements ToArray
 {
-
-
-    public function model(array $rows)
+    public function array(array $array)
     {
-        foreach ($rows as $row)
-        {
-            return new Pdf([
-                'name_file' => $row[0],
-                'email' => $row[1],
-            ]);
-        }
+        return $array;
     }
 }
