@@ -3,59 +3,50 @@
 namespace App\Http\Controllers;
 
 use App\Imports\PDFImport;
+use App\Jobs\SendEmailJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Smalot\PdfParser\Parser;
+use Illuminate\Support\Facades\Storage;
 
 class SendPdfController extends Controller
 {
     public function sendPdf(Request $request)
     {
+
         $request->validate([
             'file' => 'required|mimes:xlsx,xls',
-            'path_pdf' => 'required',
+            'pdfs.*' => 'required|mimes:pdf',
             'periodo' => 'required',
         ]);
 
         $mailsFailure = [];
 
-        $archivosPdf = $this->readFilesFromDirectory($request->input('path_pdf'));
+        $this->guardarPdf($request->file('pdfs'));
+
+        $archivosPdf =  Storage::disk('public')->files('pdfs');
 
         $collection = Excel::toArray(new PDFImport, $request->file('file'));
 
 
         foreach ($archivosPdf as  $value) {
-            $cedulaEmpleado = $this->readPdf($request->input('path_pdf') . '/' . $value);
-
-
+            $cedulaEmpleado = $this->readPdf(Storage::disk('public')->path($value));
 
             $filteredArray = Arr::first($collection[0], function ($value, $key) use ($cedulaEmpleado) {
-
                 return $value[0] == $cedulaEmpleado;
             });
 
+            $pathToFile = Storage::disk('public')->path($value);
 
-            $pathToFile = $request->input('path_pdf') . '/' . $value;
+            SendEmailJob::dispatch($pathToFile, $filteredArray, $request->periodo);
 
-
-            Mail::raw($request->periodo, function ($message) use ($pathToFile, $filteredArray) {
-                $message->from('datos.venezuela@kfc.com.ve', 'Nomina KFC');
-                $message->to($filteredArray[1])->subject('Recibo de pago');
-                $message->attach($pathToFile);
-            });
         }
-
-
-        return response()->json([
-            'message' => 'Emails enviados',
-            'mails_failure' => $mailsFailure
-        ]);
+        return redirect()->back()->banner('Los correos se van a enviar en segundo plano, por favor espere.');
     }
-
 
     public function readFilesFromDirectory($path)
     {
@@ -99,5 +90,37 @@ class SendPdfController extends Controller
         }
 
         return  trim($cedula[0]);
+    }
+
+    public function guardarPdf($pdfs){
+
+        foreach ($pdfs as $pdf) {
+            $pdf->store('pdfs', 'public');
+        }
+    }
+
+    public function FailedJobs()
+    {
+        $payloads = [];
+        $failedJobs = DB::table('failed_jobs')->pluck('payload');
+
+        foreach ($failedJobs as $payload) {
+
+            $payload = json_decode($payload, true);
+
+            $job = unserialize($payload['data']['command']);
+
+            $payloads[] = [
+                'pathToFile' => $job->getPathToFile(),
+                'cedula' => $job->getFilteredArray()[0],
+                'email' => $job->getFilteredArray()[1],
+                'periodo' => $job->getPeriodo(),
+
+            ];
+
+
+        }
+
+        return response()->json($payloads, 200);
     }
 }

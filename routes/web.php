@@ -4,6 +4,7 @@ use App\Http\Controllers\SendPdfController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Bus;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -11,6 +12,7 @@ Route::get('/', function () {
         'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
+        'JobsFailed' => Bus::getFailedJobs(),
     ]);
 });
 
@@ -23,7 +25,8 @@ Route::middleware([
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
-
+    Route::post('/send-pdf', [SendPdfController::class, 'sendPdf'])->name('send-pdf');
+    Route::get('/jobs-failed', [SendPdfController::class, 'FailedJobs'])->name('jobs-failed');
 });
 
-Route::post('/send-pdf', [SendPdfController::class, 'sendPdf'])->name('send-pdf');
+
