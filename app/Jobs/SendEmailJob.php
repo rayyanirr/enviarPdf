@@ -51,20 +51,14 @@ class SendEmailJob implements ShouldQueue
     public function handle(): void
     {
 
+        Mail::raw($this->periodo, function ($message) {
+            $message->from('datos.venezuela@kfc.com.ve', 'Nomina KFC');
+            $message->to($this->filteredArray[1])->subject('Recibo de pago');
+            $message->attach($this->pathToFile);
+        });
 
-        try {
-            Mail::raw($this->periodo, function ($message) {
-                $message->from('datos.venezuela@kfc.com.ve', 'Nomina KFC');
-                $message->to($this->filteredArray[1])->subject('Recibo de pago');
-                $message->attach($this->pathToFile);
-            });
-
-            if (file_exists($this->pathToFile)) {
-                unlink($this->pathToFile);
-            }
-        } catch (\Exception $e) {
-
-            Log::info('Error deleting file: ' . $e->getMessage());
+        if (file_exists($this->pathToFile)) {
+            unlink($this->pathToFile);
         }
     }
 }

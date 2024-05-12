@@ -4,7 +4,7 @@ use App\Http\Controllers\SendPdfController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Bus;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -12,7 +12,7 @@ Route::get('/', function () {
         'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
-        'JobsFailed' => Bus::getFailedJobs(),
+
     ]);
 });
 

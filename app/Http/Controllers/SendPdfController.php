@@ -24,7 +24,9 @@ class SendPdfController extends Controller
             'periodo' => 'required',
         ]);
 
-        $mailsFailure = [];
+        DB::table('failed_jobs')->truncate();
+
+        $this->borrarPdfs(Storage::disk('public')->files('pdfs'));
 
         $this->guardarPdf($request->file('pdfs'));
 
@@ -45,7 +47,7 @@ class SendPdfController extends Controller
             SendEmailJob::dispatch($pathToFile, $filteredArray, $request->periodo);
 
         }
-        return redirect()->back()->banner('Los correos se van a enviar en segundo plano, por favor espere.');
+        return redirect('/dashboard')->banner('Los correos se van a enviar en segundo plano, por favor espere.');
     }
 
     public function readFilesFromDirectory($path)
@@ -122,5 +124,12 @@ class SendPdfController extends Controller
         }
 
         return response()->json($payloads, 200);
+    }
+
+    public function borrarPdfs($pdfs)
+    {
+        foreach ($pdfs as $pdf) {
+            Storage::disk('public')->delete($pdf);
+        }
     }
 }
