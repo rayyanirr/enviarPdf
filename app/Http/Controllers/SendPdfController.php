@@ -42,10 +42,15 @@ class SendPdfController extends Controller
                 return $value[0] == $cedulaEmpleado;
             });
 
-            $pathToFile = Storage::disk('public')->path($value);
 
-            SendEmailJob::dispatch($pathToFile, $filteredArray, $request->periodo);
+            $oldPath = Storage::disk('public')->path($value);
 
+            $newPath = Storage::disk('public')->path('pdfs/' . $filteredArray[0] . '.pdf');
+
+            rename($oldPath, $newPath);
+
+
+            SendEmailJob::dispatch($newPath, $filteredArray, $request->periodo);
         }
         return redirect('/dashboard')->banner('Los correos se van a enviar en segundo plano, por favor espere.');
     }
@@ -94,7 +99,8 @@ class SendPdfController extends Controller
         return  trim($cedula[0]);
     }
 
-    public function guardarPdf($pdfs){
+    public function guardarPdf($pdfs)
+    {
 
         foreach ($pdfs as $pdf) {
             $pdf->store('pdfs', 'public');
@@ -119,8 +125,6 @@ class SendPdfController extends Controller
                 'periodo' => $job->getPeriodo(),
 
             ];
-
-
         }
 
         return response()->json($payloads, 200);
