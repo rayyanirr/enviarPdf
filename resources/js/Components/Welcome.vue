@@ -83,9 +83,9 @@ watchEffect(() => {
                     <div class="mb-2 mt-2">
                         <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                             for="multiple_files">Cargue los PDF</label>
-                        <input ref="pdfsRef" @input="form.pdfs = $event.target.files"
+                        <input ref="pdfsRef" @input="form.pdfs = $event.target.files[0]"
                             class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
-                            id="multiple_files" type="file" multiple accept="application/pdf">
+                            id="multiple_files" type="file" >
                         <InputError class="mt-2" :message="form.errors.pdfs" />
                     </div>
 

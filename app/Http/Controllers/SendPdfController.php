@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Validation\ValidationException;
 use Smalot\PdfParser\Parser;
 use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 
 class SendPdfController extends Controller
 {
@@ -20,7 +21,7 @@ class SendPdfController extends Controller
 
         $request->validate([
             'file' => 'required|mimes:xlsx,xls',
-            'pdfs.*' => 'required|mimes:pdf',
+            //'pdfs.*' => 'required|mimes:pdf',
             'periodo' => 'required',
         ]);
 
@@ -28,7 +29,19 @@ class SendPdfController extends Controller
 
         $this->borrarPdfs(Storage::disk('public')->files('pdfs'));
 
-        $this->guardarPdf($request->file('pdfs'));
+        $zipFile = $request->file('pdfs');
+        $zipFileName = $zipFile->getClientOriginalName();
+        $zipFile->storeAs('public/zips', $zipFileName);
+
+        $zip = new ZipArchive;
+        $zipPath = storage_path('app/public/zips/' . $zipFileName);
+
+        if ($zip->open($zipPath) === TRUE) {
+            $zip->extractTo(storage_path('app/public/pdfs'));
+            $zip->close();
+        }
+
+        Storage::disk('public')->delete('zips/' . $zipFileName);
 
         $archivosPdf =  Storage::disk('public')->files('pdfs');
 
@@ -38,19 +51,24 @@ class SendPdfController extends Controller
         foreach ($archivosPdf as  $value) {
             $cedulaEmpleado = $this->readPdf(Storage::disk('public')->path($value));
 
-            $filteredArray = Arr::first($collection[0], function ($value, $key) use ($cedulaEmpleado) {
-                return $value[0] == $cedulaEmpleado;
-            });
+            if ($cedulaEmpleado != null) {
+                $filteredArray = Arr::first($collection[0], function ($value, $key) use ($cedulaEmpleado) {
+                    return $value[0] == $cedulaEmpleado;
+                });
+
+                if ($filteredArray != null) {
+
+                    $oldPath = Storage::disk('public')->path($value);
+
+                    $newPath = Storage::disk('public')->path('pdfs/' . $filteredArray[0] . '.pdf');
+
+                    rename($oldPath, $newPath);
+
+                    SendEmailJob::dispatch($newPath, $filteredArray, $request->periodo);
+                }
+            }
 
 
-            $oldPath = Storage::disk('public')->path($value);
-
-            $newPath = Storage::disk('public')->path('pdfs/' . $filteredArray[0] . '.pdf');
-
-            rename($oldPath, $newPath);
-
-
-            SendEmailJob::dispatch($newPath, $filteredArray, $request->periodo);
         }
         return redirect('/dashboard')->banner('Los correos se van a enviar en segundo plano, por favor espere.');
     }
@@ -77,8 +95,8 @@ class SendPdfController extends Controller
 
     public function readPdf($path)
     {
-
-        $parser = new Parser();
+        try {
+            $parser = new Parser();
 
         // Carga el contenido del PDF
         $pdf = $parser->parseFile($path);
@@ -97,6 +115,13 @@ class SendPdfController extends Controller
         }
 
         return  trim($cedula[0]);
+
+        } catch (\Throwable $th) {
+
+            return  null;
+        }
+
+
     }
 
     public function guardarPdf($pdfs)
